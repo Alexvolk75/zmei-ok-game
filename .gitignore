@@ -1,0 +1,11 @@
+node_modules/
+hosting-build/
+ok-build/
+deploy-out.txt
+deploy-log.txt
+upload-debug.log
+poll.log
+tools/deploy-gui-py/.portable-node/
+tools/deploy-gui-py/vk-miniapps-access-token.txt
+*.zip
+.config/

@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Deploy GUI — VK Mini Apps</title>
+    <style>
+      :root { color-scheme: dark; --bg:#0b1020; --panel: rgba(255,255,255,.07); --text:#eaf2ff; --muted:rgba(234,242,255,.7); --accent:#7cf7d4; --danger:#ff4d6d; }
+      body{ margin:0; font-family: system-ui, Segoe UI, Roboto, Arial, sans-serif; background: radial-gradient(1000px 700px at 30% 20%, rgba(124,247,212,.12), transparent 55%), radial-gradient(900px 600px at 85% 10%, rgba(167,139,250,.10), transparent 55%), linear-gradient(180deg, #070a14, var(--bg)); color: var(--text); }
+      .wrap{ max-width: 980px; margin: 0 auto; padding: 16px 14px 30px; }
+      .top{ display:flex; align-items:flex-end; justify-content:space-between; gap:12px; margin-bottom: 12px; }
+      .title{ font-weight: 900; font-size: 18px; letter-spacing:.2px;}
+      .sub{ color: var(--muted); font-size: 12px; }
+      .card{ background: var(--panel); border:1px solid rgba(255,255,255,.12); border-radius: 16px; padding: 12px; }
+      .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; }
+      label{ display:block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+      input, textarea, select{ width: 100%; padding: 10px 10px; border-radius: 12px; border:1px solid rgba(255,255,255,.14); background: rgba(0,0,0,.25); color: var(--text); }
+      textarea{ min-height: 90px; resize: vertical; }
+      .col{ flex: 1 1 260px; }
+      .btn{ appearance:none; border-radius: 12px; padding: 10px 12px; border:1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.10); color: var(--text); cursor:pointer; font-weight: 800; }
+      .btn.primary{ border-color: rgba(124,247,212,.28); background: linear-gradient(135deg, rgba(124,247,212,.22), rgba(167,139,250,.14)); }
+      .btn.danger{ border-color: rgba(255,77,109,.28); background: rgba(255,77,109,.12); }
+      .status{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top: 10px; }
+      .pill{ padding: 7px 10px; border-radius: 999px; border:1px solid rgba(255,255,255,.12); background: rgba(0,0,0,.18); font-size: 12px; color: var(--muted); }
+      .log{ margin-top: 12px; white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.35; background: rgba(0,0,0,.32); border:1px solid rgba(255,255,255,.10); border-radius: 14px; padding: 10px; max-height: 380px; overflow:auto; }
+      .hint{ margin-top: 10px; font-size: 12px; color: var(--muted); }
+      a{ color: var(--accent); }
+      .grid{ display:grid; grid-template-columns: 1fr; gap: 10px; }
+      @media (min-width: 860px){ .grid{ grid-template-columns: 1fr 1fr; } }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="top">
+        <div>
+          <div class="title">Deploy GUI</div>
+          <div class="sub">Массовый деплой одной игры в много VK app_id. Старые игры не затрагиваются: каждый деплой идёт в свой app_id.</div>
+        </div>
+        <div class="sub">Порт: <span id="port">8787</span></div>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <div class="row">
+            <div class="col">
+              <label>Базовая папка игры (где лежит `vk-hosting-config.json`)</label>
+              <input id="baseDir" placeholder="Напр.: C:\Users\Administrator\Desktop\newgame" />
+            </div>
+            <div class="col">
+              <label>Окружение</label>
+              <select id="env">
+                <option value="production">production (PROD ссылки)</option>
+                <option value="dev">dev (stage ссылки)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row" style="margin-top:10px">
+            <div class="col">
+              <label>VK app_id (можно список, через пробел/перенос строки/запятую)</label>
+              <textarea id="appIds" placeholder="54570075&#10;54563397&#10;..."></textarea>
+            </div>
+          </div>
+
+          <div class="row" style="margin-top:10px">
+            <button class="btn primary" id="btnStart">Старт деплоя</button>
+            <button class="btn danger" id="btnStop">Стоп (очистить очередь)</button>
+            <a class="btn" id="btnExport" href="/api/export">Скачать CSV</a>
+          </div>
+
+          <div class="hint">
+            Чтобы деплои шли без “подтверди на телефоне”, настрой переменную окружения <code>MINI_APPS_ACCESS_TOKEN</code> у себя в системе.
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="status">
+            <div class="pill">Статус: <span id="running">—</span></div>
+            <div class="pill">Текущий app_id: <span id="current">—</span></div>
+            <div class="pill">В очереди: <span id="remaining">0</span></div>
+          </div>
+          <div class="log" id="log"></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+      const log = $("log");
+      const baseDir = $("baseDir");
+      const appIds = $("appIds");
+      const envSel = $("env");
+
+      // default baseDir to current project if user didn't fill
+      baseDir.value = baseDir.value || "C:\\\\Users\\\\Administrator\\\\Desktop\\\\newgame";
+
+      function append(text){
+        log.textContent += text;
+        log.scrollTop = log.scrollHeight;
+      }
+
+      async function postJson(url, data){
+        const r = await fetch(url, { method:"POST", headers:{ "content-type":"application/json" }, body: JSON.stringify(data) });
+        return await r.json();
+      }
+
+      $("btnStart").addEventListener("click", async () => {
+        log.textContent = "";
+        const res = await postJson("/api/start", {
+          baseDir: baseDir.value,
+          environment: envSel.value === "dev" ? "dev" : "production",
+          appIds: appIds.value
+        });
+        if (!res.ok) append("\\nERROR: " + res.error + "\\n");
+        else append("\\nQueued: " + res.queued + "\\n");
+      });
+
+      $("btnStop").addEventListener("click", async () => {
+        await postJson("/api/stop", {});
+        append("\\nQueue cleared\\n");
+      });
+
+      const es = new EventSource("/events");
+      es.addEventListener("state", (e) => {
+        const s = JSON.parse(e.data);
+        $("running").textContent = s.running ? "running" : "idle";
+        $("current").textContent = s.current || "—";
+        $("remaining").textContent = String(s.remaining ?? 0);
+      });
+      es.addEventListener("log", (e) => {
+        const d = JSON.parse(e.data);
+        append(d.text);
+      });
+      es.addEventListener("result", (e) => {
+        const r = JSON.parse(e.data);
+        append(`\\n[RESULT] app_id=${r.appId} ok=${r.ok} prodUrl=${r.prodUrl || ""}\\n`);
+      });
+    </script>
+  </body>
+</html>
+

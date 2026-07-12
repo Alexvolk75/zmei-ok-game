@@ -1,0 +1,10 @@
+https://3ec74c4ce107fe.lhr.life/index.html
+
+В VK → Размещение → Режим разработки (web + mobile + mvk):
+  вставь URL С /index.html в конце
+
+Сначала проверь в браузере — должна открыться игра «Змей», не форма с IP.
+Открыть в VK: https://vk.ru/app54660972
+
+loca.lt НЕ работает в VK — там interstitial «введи IP».
+Скрипт: scripts\start-local-dev.cmd (localhost.run)

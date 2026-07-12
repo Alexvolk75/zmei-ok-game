@@ -1,0 +1,26 @@
+{
+  "name": "zmei-vk-miniapp",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "vite build",
+    "preview": "vite preview --host",
+    "bundle:ok": "node ./scripts/bundle-ok.mjs",
+    "deploy:github": "powershell -ExecutionPolicy Bypass -File ./scripts/deploy-github.ps1",
+    "serve:local": "npm run bundle:hosting && node ./scripts/serve-local.mjs",
+    "tunnel": "vk-tunnel",
+    "dev:vk": "node ./scripts/dev-vk-tunnel.mjs",
+    "dev:local": "scripts\\start-local-dev.cmd",
+    "deploy": "npm run bundle:hosting && vk-miniapps-deploy",
+    "deploy:dev": "npm run bundle:hosting && vk-miniapps-deploy",
+    "deploy:gui": "node ./tools/deploy-gui/server.mjs"
+  },
+  "devDependencies": {
+    "@vkontakte/vk-bridge": "^3.0.2",
+    "@vkontakte/vk-miniapps-deploy": "^1.0.2",
+    "@vkontakte/vk-tunnel": "^0.2.10",
+    "vite": "^7.0.0"
+  }
+}

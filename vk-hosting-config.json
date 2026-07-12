@@ -1,0 +1,12 @@
+{
+  "app_id": 54667491,
+  "static_path": "hosting-build",
+  "endpoints": {
+    "mobile": "index.html",
+    "mvk": "index.html",
+    "web": "index.html"
+  },
+  "update_prod": 1,
+  "update_dev": 0,
+  "noprompt": true
+}
